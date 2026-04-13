@@ -7,7 +7,7 @@ ADDRESS = "TFYRnxcDAtVQgUjtbZQHGSLP2qgbkt2Zg1"
 
 seen_tx = set()
 
-TOMAN_PER_TRX = 1_000_000 / 20.73
+TOMAN_PER_TRX = 1_000_000 / 19.6
 
 def round_toman(amount):
     s = f"{amount:.0f}"
