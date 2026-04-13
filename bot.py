@@ -2,7 +2,7 @@ import requests
 import time
 
 BOT_TOKEN = "8750652862:AAHxzpzs6sFWh79wO7BGbylPd0QTBLUZf8w"
-CHAT_ID = "708434490"
+CHAT_IDS = ["708434490", "539669812", "5249213540"]
 ADDRESS = "TFYRnxcDAtVQgUjtbZQHGSLP2qgbkt2Zg1"
 
 seen_tx = set()
@@ -21,11 +21,12 @@ def round_toman(amount):
 
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": msg,
-        "parse_mode": "Markdown"
-    })
+    for chat_id in CHAT_IDS:
+        requests.post(url, data={
+            "chat_id": chat_id,
+            "text": msg,
+            "parse_mode": "Markdown"
+        })
 
 while True:
     url = f"https://api.trongrid.io/v1/accounts/{ADDRESS}/transactions"
@@ -52,4 +53,4 @@ while True:
                 send_telegram(msg)
             except:
                 pass
-    time.sleep(5)
+    time.sleep(4)
