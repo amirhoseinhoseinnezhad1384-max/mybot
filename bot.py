@@ -7,7 +7,7 @@ ADDRESS = "TFYRnxcDAtVQgUjtbZQHGSLP2qgbkt2Zg1"
 
 seen_tx = set()
 
-TOMAN_PER_TRX = 1_000_000 / 19.6
+TOMAN_PER_TRX = 51000
 
 def round_toman(amount):
     s = f"{amount:.0f}"
@@ -53,4 +53,4 @@ while True:
                 send_telegram(msg)
             except:
                 pass
-    time.sleep(4)
+    time.sleep(5)
