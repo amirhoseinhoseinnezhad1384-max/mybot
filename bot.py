@@ -19,7 +19,7 @@ TARGET_AMOUNTS = [
 ]
 
 TARGET_SUN = {
-    int(Decimal(x) * Decimal(1_000_000))
+    int(Decimal(x) * Decimal("1000000"))
     for x in TARGET_AMOUNTS
 }
 
@@ -34,60 +34,95 @@ def send_telegram(msg):
         "disable_web_page_preview": True
     }, timeout=10)
 
-def fmt_trx(sun):
-    trx = Decimal(sun) / Decimal(1_000_000)
+def get_latest_block_number():
+    res = requests.get(
+        "https://api.trongrid.io/wallet/getnowblock",
+        timeout=10
+    ).json()
+
+    return res["block_header"]["raw_data"]["number"]
+
+def get_block_by_number(block_number):
+    res = requests.post(
+        "https://api.trongrid.io/wallet/getblockbynum",
+        json={"num": block_number},
+        timeout=10
+    ).json()
+
+    return res
+
+def fmt_trx(amount_sun):
+    trx = Decimal(amount_sun) / Decimal("1000000")
     return format(trx.normalize(), "f")
 
-def fmt_toman(sun):
-    trx = Decimal(sun) / Decimal(1_000_000)
+def fmt_toman(amount_sun):
+    trx = Decimal(amount_sun) / Decimal("1000000")
     toman = trx * TOMAN_PER_TRX
     return f"{int(toman):,}"
 
-while True:
-    try:
-        res = requests.post(
-            "https://api.trongrid.io/wallet/getnowblock",
-            json={},
-            timeout=10
-        ).json()
+def process_transaction(tx, block_number):
+    txid = tx.get("txID")
 
-        transactions = res.get("transactions", [])
+    if not txid or txid in seen_tx:
+        return
 
-        for tx in transactions:
-            txid = tx.get("txID")
-            if not txid or txid in seen_tx:
-                continue
+    seen_tx.add(txid)
 
-            seen_tx.add(txid)
+    contracts = tx.get("raw_data", {}).get("contract", [])
 
-            contracts = tx.get("raw_data", {}).get("contract", [])
+    for contract in contracts:
+        if contract.get("type") != "TransferContract":
+            continue
 
-            for contract in contracts:
-                if contract.get("type") != "TransferContract":
-                    continue
+        value = contract.get("parameter", {}).get("value", {})
+        amount_sun = value.get("amount")
 
-                value = contract.get("parameter", {}).get("value", {})
-                amount_sun = value.get("amount")
+        if amount_sun not in TARGET_SUN:
+            continue
 
-                if amount_sun not in TARGET_SUN:
-                    continue
+        amount_trx = fmt_trx(amount_sun)
+        amount_toman = fmt_toman(amount_sun)
+        link = f"https://tronscan.org/#/transaction/{txid}"
 
-                amount_trx = fmt_trx(amount_sun)
-                amount_toman = fmt_toman(amount_sun)
-                link = f"https://tronscan.org/#/transaction/{txid}"
+        msg = (
+            f"🚨 تراکنش پیدا شد\n\n"
+            f"💰 `{amount_trx}` TRX\n"
+            f"🇮🇷 `{amount_toman}` تومان\n"
+            f"🧱 Block: `{block_number}`\n"
+            f"🔗 {link}"
+        )
 
-                msg = (
-                    f"💰 `{amount_trx}` TRX\n"
-                    f"🇮🇷 `{amount_toman}` تومان\n"
-                    f"🔗 {link}"
-                )
+        send_telegram(msg)
 
-                send_telegram(msg)
+def main():
+    latest = get_latest_block_number()
+    current_block = latest
 
-        if len(seen_tx) > 50000:
-            seen_tx = set(list(seen_tx)[-20000:])
+    print("Start from block:", current_block)
 
-    except Exception as e:
-        print("Error:", e)
+    while True:
+        try:
+            latest_block = get_latest_block_number()
 
-    time.sleep(3)
+            while current_block <= latest_block:
+                block = get_block_by_number(current_block)
+                transactions = block.get("transactions", [])
+
+                for tx in transactions:
+                    process_transaction(tx, current_block)
+
+                print("Checked block:", current_block)
+                current_block += 1
+
+                time.sleep(0.2)
+
+            if len(seen_tx) > 100000:
+                seen_tx.clear()
+
+            time.sleep(1)
+
+        except Exception as e:
+            print("Error:", e)
+            time.sleep(5)
+
+main()
