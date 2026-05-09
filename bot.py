@@ -2,19 +2,52 @@ import requests
 import time
 from decimal import Decimal
 
-BOT_TOKEN = "8750652862:AAHxzpzs6sFWh79wO7BGbylPd0QTBLUZf8w"
-CHAT_ID = "708434490"
+BOT_TOKEN = "توکن قبلی خودت"
+
+CHAT_IDS = [
+    "708434490",
+    "5249213540",
+    "539669812"
+]
 
 TOMAN_PER_TRX = Decimal("60000")
 
 TARGET_AMOUNTS = [
-    "18.3", "18.33", "18.333", "18.3333", "18.33333", "18.333333",
-    "18.4", "18.5",
-    "36.6", "36.66", "36.666", "36.6666", "36.66666", "36.666666",
-    "36.7", "37",
-    "73.3", "73.33", "73.333", "73.3333", "73.33333", "73.333333",
-    "74.4", "74", "73",
-    "91", "91.6", "91.66", "91.666", "91.6666", "91.66666", "91.666666",
+    "18.3",
+    "18.33",
+    "18.333",
+    "18.3333",
+    "18.33333",
+    "18.333333",
+    "18.4",
+    "18.5",
+
+    "36.6",
+    "36.66",
+    "36.666",
+    "36.6666",
+    "36.66666",
+    "36.666666",
+    "36.7",
+    "37",
+
+    "73.3",
+    "73.33",
+    "73.333",
+    "73.3333",
+    "73.33333",
+    "73.333333",
+    "74.4",
+    "74",
+    "73",
+
+    "91",
+    "91.6",
+    "91.66",
+    "91.666",
+    "91.6666",
+    "91.66666",
+    "91.666666",
     "92"
 ]
 
@@ -27,12 +60,22 @@ seen_tx = set()
 
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": msg,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True
-    }, timeout=10)
+
+    for chat_id in CHAT_IDS:
+        try:
+            requests.post(
+                url,
+                data={
+                    "chat_id": chat_id,
+                    "text": msg,
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": True
+                },
+                timeout=10
+            )
+
+        except Exception as e:
+            print("Telegram Error:", e)
 
 def get_latest_block_number():
     res = requests.get(
@@ -71,6 +114,7 @@ def process_transaction(tx, block_number):
     contracts = tx.get("raw_data", {}).get("contract", [])
 
     for contract in contracts:
+
         if contract.get("type") != "TransferContract":
             continue
 
@@ -82,6 +126,7 @@ def process_transaction(tx, block_number):
 
         amount_trx = fmt_trx(amount_sun)
         amount_toman = fmt_toman(amount_sun)
+
         link = f"https://tronscan.org/#/transaction/{txid}"
 
         msg = (
@@ -92,26 +137,41 @@ def process_transaction(tx, block_number):
             f"🔗 {link}"
         )
 
+        print("FOUND:", amount_trx, "TRX")
+
         send_telegram(msg)
 
 def main():
+
     latest = get_latest_block_number()
     current_block = latest
 
     print("Start from block:", current_block)
 
     while True:
+
         try:
+
             latest_block = get_latest_block_number()
 
             while current_block <= latest_block:
-                block = get_block_by_number(current_block)
+
+                while True:
+                    try:
+                        block = get_block_by_number(current_block)
+                        break
+
+                    except Exception as e:
+                        print("Retry block:", current_block, e)
+                        time.sleep(2)
+
                 transactions = block.get("transactions", [])
 
                 for tx in transactions:
                     process_transaction(tx, current_block)
 
                 print("Checked block:", current_block)
+
                 current_block += 1
 
                 time.sleep(0.2)
@@ -122,7 +182,9 @@ def main():
             time.sleep(1)
 
         except Exception as e:
-            print("Error:", e)
+
+            print("Main Error:", e)
+
             time.sleep(5)
 
 main()
