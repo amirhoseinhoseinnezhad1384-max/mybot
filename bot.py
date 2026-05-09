@@ -2,7 +2,7 @@ import requests
 import time
 from decimal import Decimal
 
-BOT_TOKEN = "توکن قبلی خودت"
+BOT_TOKEN = "8750652862:AAHxzpzs6sFWh79wO7BGbylPd0QTBLUZf8w"
 
 CHAT_IDS = [
     "708434490",
